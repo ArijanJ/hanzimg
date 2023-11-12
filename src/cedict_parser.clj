@@ -1,20 +1,21 @@
-(ns cedict-parser)
+(ns cedict-parser
+  (:require [clojure.string :as str]))
 
 (defn get-hanzi 
   [string script]
   ((case script
      :traditional second
      :simplified  last)
-   (re-find #"^([^ ]+) ([^ ]+)" string)))
+   (seq (re-find #"^([^ ]+) ([^ ]+)" string))))
 
 (defn get-pinyin [line]
   (second (re-find #"\[(.*)\] \/" line))) ; Get second capture group (.*)
 
 (defn get-meanings [line]
-  (into [] (map second (re-seq #"\/([^\/]+)" line))))
+  (seq (map second (re-seq #"\/([^\/]+)" line))))
 
 (defn get-tones [line]
-  (into [] (map last (clojure.string/split (get-pinyin line) #" "))))
+  (seq (map last (str/split (get-pinyin line) #" "))))
 
 (defn debug-line [line]
   (println (str "Line:       " line))
