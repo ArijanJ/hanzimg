@@ -1,5 +1,5 @@
 (ns image
-  (:import [java.awt Color Font]
+  (:import [java.awt Color Font BasicStroke RenderingHints]
            [java.awt.image BufferedImage]
            [javax.imageio ImageIO]
            [java.io File])
@@ -7,9 +7,21 @@
 
 (def half #(/ % 2))
 
-(defn image-graphics-pair [width height]
-  (let [image (BufferedImage. width height BufferedImage/TYPE_INT_RGB)]
-    [image (.createGraphics image)]))
+(defn create-graphics-for-image [image]
+  (let [hints (RenderingHints. RenderingHints/KEY_TEXT_ANTIALIASING 
+                               RenderingHints/VALUE_TEXT_ANTIALIAS_ON)
+        gfx (.createGraphics image)]
+    (.setRenderingHints gfx hints)
+    gfx))
+
+(defn image-graphics-pair
+  ([file]
+   (let [image (ImageIO/read file)]
+     [image (create-graphics-for-image image)]))
+  ([width height]
+   (let [image (BufferedImage. width height BufferedImage/TYPE_INT_RGB)]
+     [image (create-graphics-for-image image)])))
+     
 
 (defn make-text 
   [ & {:keys [text font size color] 
@@ -18,10 +30,22 @@
 
 (defn draw-text 
   [gfx x y {:keys [text font size color]}]
-  (doto gfx
-    (.setColor color)
-    (.setFont (Font. font Font/PLAIN size))
-    (.drawString (str text) x y)))
+  (let [text (str text)]
+    (.setFont gfx (Font. font Font/PLAIN size))
+    ; Outline
+    (.setColor gfx Color/BLACK)
+    (.setStroke gfx (BasicStroke. 1))
+    (doseq [n (range 0 8)
+            m (range 0 8)]
+      (let [sides [[(+ x n) (+ y m)]
+                   [(- x n) (+ y m)]
+                   [(+ x n) (- y m)]
+                   [(- x n) (- y m)]]]
+        (doseq [[x y] sides]
+          (.drawString gfx (str text) x y))))
+    ; Text
+    (.setColor gfx color)
+    (.drawString gfx (str text) x y)))
 
 (defn hanzi-with-tones [line]
   (map vector 
@@ -39,13 +63,12 @@
   ({\1 Color/RED, \2 Color/YELLOW, \3 Color/GREEN, \4 Color/BLUE, \5 Color/WHITE}
    tone))
 
-(defn render-line [line]
+(defn render-line [line image+gfx]
   (let [width  1920
         height 1080, vertical-middle (half height)
         sizes {:characters 256
                :pinyin 64
-               :meaning 32}
-        image+gfx (image-graphics-pair 1920 1080)]
+               :meaning 32}]
 
     (loop [all-hanzi (hanzi-with-tones line), 
            [zi tone] (first all-hanzi),

@@ -7,6 +7,11 @@
     (rand-nth (line-seq r))))
 
 (defn -main []
-  (-> (main/random-line)
-      image/render-line
-      (image/save-png "output")))
+  (let [input (io/file "input.png")]
+    (-> (random-line)
+        (image/render-line
+          (apply image/image-graphics-pair
+                 (if (.exists input)
+                   [input]
+                   [1920 1080])))
+        (image/save-png "output"))))
